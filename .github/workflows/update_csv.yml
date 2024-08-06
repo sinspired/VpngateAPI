@@ -2,8 +2,10 @@ name: Update VPNGate List
 
 on:
   schedule:
-    - cron: '*/10 * * * *'  # 每10分钟运行一次
-
+    - cron: '*/5 * * * *'  # 每10分钟运行一次
+  push:
+    branches:
+      - main
 jobs:
   update-list:
     runs-on: ubuntu-latest
@@ -30,3 +32,5 @@ jobs:
         git add list.csv
         git commit -m 'Update VPNGate list'
         git push
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
