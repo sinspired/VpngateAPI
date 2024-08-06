@@ -1,0 +1,32 @@
+name: Update VPNGate List
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'  # 每10分钟运行一次
+
+jobs:
+  update-list:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
+
+    - name: Install dependencies
+      run: pip install requests
+
+    - name: Fetch VPNGate data and update CSV
+      run: python fetch_vpngate.py
+
+    - name: Commit and push changes
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+        git add list.csv
+        git commit -m 'Update VPNGate list'
+        git push
