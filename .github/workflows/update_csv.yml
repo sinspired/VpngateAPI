@@ -44,15 +44,16 @@ jobs:
     # Step 6: 修改 README.md 文件
     - name: Update README.md
       run: |
+        export TZ=Asia/Shanghai
         echo "# $(basename $GITHUB_REPOSITORY)" > README.md
         echo "" >> README.md
-        echo "The servers.csv file was last updated on $(date -u +"%Y-%m-%d %H:%M:%S") UTC." >> README.md
+        echo "The servers.csv file was last updated on $(date +"%Y-%m-%d %H:%M:%S") UTC+8." >> README.md
 
     # Step 7: 提交并推送更新
     - name: Commit and push changes
       uses: EndBug/add-and-commit@v9
       with:
-        message: "Update servers.csv and README.md"
+        message: "Update servers list"
         add: |
           requirements.txt
           servers.csv
