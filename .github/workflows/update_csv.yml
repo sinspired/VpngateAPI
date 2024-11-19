@@ -41,15 +41,6 @@ jobs:
     - name: Fetch VPNGate data and update CSV
       run: python fetch_vpngate.py
 
-    # 检查文件是否改变
-    - name: Check for changes
-      run: |
-        if git diff --quiet; then
-          echo "No changes detected in servers.csv. Exiting."
-          exit 0
-        fi
-
-
     # Step 6: 修改 README.md 文件
     - name: Update README.md
       run: |
