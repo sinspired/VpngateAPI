@@ -21,7 +21,7 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.12'
-        cache: "pip"
+        cache: 'pip'
 
     # Step 3: 动态生成 requirements.txt 文件（仅需运行一次）
     - name: Generate requirements.txt (if missing)
@@ -35,7 +35,7 @@ jobs:
           pip install --upgrade pip
           pip install --upgrade setuptools
           pip install pipreq
-          pipreq / --force
+          pipreq * --force
 
     # Step 4: 安装依赖
     - name: Install dependencies
