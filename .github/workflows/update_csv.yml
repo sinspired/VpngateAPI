@@ -31,7 +31,7 @@ jobs:
           # pip install pipreq
           # pipreq . --force
         # fi
-          echo "requests>=2.20.0" > requirements.txt
+          echo "" > requirements.txt
           pip install --upgrade pip
           pip install --upgrade setuptools
           pip install pipreq
