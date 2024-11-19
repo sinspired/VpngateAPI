@@ -21,7 +21,7 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.12'  # 使用最新稳定版 Python
-        cache: 'pip'  # 缓存 pip 依赖
+        # cache: 'pip'  # 缓存 pip 依赖
 
     # Step 3: 安装依赖
     - name: Install dependencies
