@@ -26,6 +26,7 @@ jobs:
     # Step 3: 动态创建 requirements.txt
     - name: Create requirements.txt
       run: |
+        pip install --upgrade pip
         pip install pipreq
         pipreq .
         # echo "requests>=2.28.0" > requirements.txt
@@ -33,7 +34,7 @@ jobs:
     # Step 4: 安装依赖
     - name: Install dependencies
       run: |
-        pip install --upgrade pip
+        # pip install --upgrade pip
         pip install -r requirements.txt
 
     # Step 5: 拉取并更新 VPNGate 数据
