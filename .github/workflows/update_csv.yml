@@ -31,11 +31,11 @@ jobs:
           # pip install pipreq
           # pipreq . --force
         # fi
-          echo "requests>=2.28.0" > requirements.txt
+          echo "requests>=2.32.3" > requirements.txt
           rm requirements.txt
           pip install --upgrade pip
-          pip install requests
-          pip freeze > requirements.txt
+          pip install pipreq
+          
 
     # Step 4: 安装依赖
     - name: Install dependencies
