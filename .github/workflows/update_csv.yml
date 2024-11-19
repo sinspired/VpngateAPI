@@ -26,15 +26,11 @@ jobs:
     # Step 3: 动态生成 requirements.txt 文件（仅需运行一次）
     - name: Generate requirements.txt (if missing)
       run: |
-        # if [ ! -f "requirements.txt" ]; then
-          # pip install --upgrade pip
-          # pip install pipreq
-          # pipreq . --force
-        # fi
+        if [ ! -f "requirements.txt" ]; then
           pip install --upgrade pip
           pip install pipreqs
           pipreqs . --force
-          
+        fi
 
     # Step 4: 安装依赖
     - name: Install dependencies
