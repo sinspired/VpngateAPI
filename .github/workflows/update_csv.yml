@@ -33,6 +33,7 @@ jobs:
           # pipreq . --force
         # fi          
           pip install --upgrade pip
+          pip install --upgrade setuptools
           pip install pipreq
           pipreq . --force
 
