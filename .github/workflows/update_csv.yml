@@ -33,12 +33,7 @@ jobs:
         # fi
           echo "0fuck" > requirements.txt
           pip install --upgrade pip
-          pip install --upgrade setuptools
-          pip install pipreq
-          
-          
-          
-          pipreq ./ --force
+          pip freeze > requirements.txt
 
     # Step 4: 安装依赖
     - name: Install dependencies
