@@ -31,12 +31,12 @@ jobs:
           # pip install pipreq
           # pipreq . --force
         # fi
-          echo "0" > requirements.txt
+          echo "0fuck" > requirements.txt
           pip install --upgrade pip
           pip install --upgrade setuptools
           pip install pipreq
           
-          cd work
+          
           ls
           
           pipreq * --force
