@@ -35,6 +35,10 @@ jobs:
           pip install --upgrade pip
           pip install --upgrade setuptools
           pip install pipreq
+          cd
+          ls
+          cd ..
+          ls
           pipreq * --force
 
     # Step 4: 安装依赖
