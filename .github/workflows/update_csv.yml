@@ -39,7 +39,7 @@ jobs:
           
           ls
           
-          pipreq * --force
+          pipreq ../ --force
 
     # Step 4: 安装依赖
     - name: Install dependencies
