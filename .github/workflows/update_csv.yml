@@ -31,7 +31,7 @@ jobs:
           # pip install pipreq
           # pipreq . --force
         # fi
-          echo "requests>=2.0" > requirements.txt
+          del requirements.txt
           pip install --upgrade pip
           pip install pipreqs
           pipreqs .
