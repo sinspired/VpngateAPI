@@ -31,10 +31,9 @@ jobs:
           # pip install pipreq
           # pipreq . --force
         # fi
-          del requirements.txt
           pip install --upgrade pip
           pip install pipreqs
-          pipreqs .
+          pipreqs . --force
           
 
     # Step 4: 安装依赖
