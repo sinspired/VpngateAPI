@@ -41,26 +41,17 @@ jobs:
     - name: Fetch VPNGate data and update CSV
       run: python fetch_vpngate.py
 
-    # Step 6: 检查文件变化
-    - name: Check if servers.csv has changed
-      id: check_changes
-      run: |
-        if git diff --quiet servers.csv; then
-          echo "File unchanged" >> $GITHUB_ENV
-        else
-          echo "File changed" >> $GITHUB_ENV
+
       # 修改 README.md 文件
     - name: Update README.md
-      if: env.FILE_CHANGED == 'File changed'
       run: |
         export TZ=Asia/Shanghai
         echo "# $(basename $GITHUB_REPOSITORY)" > README.md
         echo "" >> README.md
         echo "The servers.csv file was last updated on $(date +"%Y-%m-%d %H:%M:%S") UTC+8." >> README.md
    
-     # Step 7: 提交并推送更新（仅在文件变更时）
+    # Step 7: 提交并推送更新（仅在文件变更时）
     - name: Commit and push changes
-      if: env.FILE_CHANGED == 'File changed'
       uses: EndBug/add-and-commit@v9
       with:
         message: "Update servers list"
