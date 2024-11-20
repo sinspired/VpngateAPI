@@ -48,7 +48,7 @@ jobs:
         #export TZ=Asia/Shanghai
         echo "# $(basename $GITHUB_REPOSITORY)" > README.md
         echo "" >> README.md
-        echo "The servers.csv file was last updated on $(TZ=Asia/Shanghai date +"%Y-%m-%d %H:%M:%S") UTC+8." >> README.md
+        echo "The servers.csv file was last updated at $(TZ=Asia/Shanghai date +"%Y-%m-%d %H:%M:%S") UTC+8." >> README.md
    
     # Step 7: 提交并推送更新（仅在文件变更时）
     - name: Commit and push changes
