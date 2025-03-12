@@ -1,3 +1,3 @@
 # VpngateAPI
 
-The servers.csv file was last updated at 2025-03-12 11:17:51 UTC+8.
+The servers.csv file was last updated at 2025-03-12 11:41:50 UTC+8.
