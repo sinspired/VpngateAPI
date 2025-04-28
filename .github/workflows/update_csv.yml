@@ -20,24 +20,9 @@ jobs:
     - name: Setup Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.12'
-        cache: 'pip'
+        python-version: '3.x'
 
-    # Step 3: 动态生成 requirements.txt 文件（仅需运行一次）
-    - name: Generate requirements.txt (if missing)
-      run: |
-        if [ ! -f "requirements.txt" ]; then
-          pip install --upgrade pip
-          pip install pipreqs
-          pipreqs . --force
-        fi
-
-    # Step 4: 安装依赖
-    - name: Install dependencies
-      run: |
-        pip install -r requirements.txt
-
-    # Step 5: 拉取并更新 VPNGate 数据
+    # Step 3: 拉取并更新 VPNGate 数据
     - name: Fetch VPNGate data and update CSV
       run: python fetch_vpngate.py
 
@@ -50,7 +35,7 @@ jobs:
         echo "" >> README.md
         echo "The servers.csv file was last updated at $(TZ=Asia/Shanghai date +"%Y-%m-%d %H:%M:%S") UTC+8." >> README.md
    
-    # Step 7: 提交并推送更新（仅在文件变更时）
+    # Step 4: 提交并推送更新（仅在文件变更时）
     - name: Commit and push changes
       uses: EndBug/add-and-commit@v9
       with:
