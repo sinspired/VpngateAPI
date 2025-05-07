@@ -2,44 +2,50 @@ name: Update VPNGate List
 
 on:
   schedule:
-    - cron: '*/5 * * * *'  # 每5分钟运行一次
+    # 08:00 - 21:00 每 5 分钟运行一次
+    - cron: '*/5 8-20 * * *'
+    # 21:00 - 24:00 每 10 分钟运行一次
+    - cron: '*/10 21-23 * * *'
+    # 00:00 - 08:00 每 20 分钟运行一次
+    - cron: '*/20 0-7 * * *'
   push:
     branches:
       - main
+
+concurrency:
+  group: update-list
+  cancel-in-progress: true  # 避免多个实例同时运行
 
 jobs:
   update-list:
     runs-on: ubuntu-latest
 
+    env:
+      TZ: Asia/Shanghai  # 设置时区为上海
+
     steps:
-    # Step 1: 检出代码
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      # Step 1: 检出代码
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    # Step 2: 设置 Python 环境
-    - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.x'
+      # Step 2: 拉取并更新 VPNGate 数据
+      - name: Fetch VPNGate data and update CSV
+        run: |
+          set -e  # 遇到错误时停止
+          python fetch_vpngate.py
 
-    # Step 3: 拉取并更新 VPNGate 数据
-    - name: Fetch VPNGate data and update CSV
-      run: python fetch_vpngate.py
+      # Step 3: 修改 README.md 文件
+      - name: Update README.md
+        run: |
+          echo "# $(basename $GITHUB_REPOSITORY)" > README.md
+          echo "" >> README.md
+          echo "The servers.csv file was last updated at $(date +"%Y-%m-%d %H:%M:%S") UTC+8." >> README.md
 
-
-      # 修改 README.md 文件
-    - name: Update README.md
-      run: |
-        #export TZ=Asia/Shanghai
-        echo "# $(basename $GITHUB_REPOSITORY)" > README.md
-        echo "" >> README.md
-        echo "The servers.csv file was last updated at $(TZ=Asia/Shanghai date +"%Y-%m-%d %H:%M:%S") UTC+8." >> README.md
-   
-    # Step 4: 提交并推送更新（仅在文件变更时）
-    - name: Commit and push changes
-      uses: EndBug/add-and-commit@v9
-      with:
-        message: "Update servers list"
-        add: |
-          servers.csv
-          README.md
+      # Step 4: 提交并推送更新（仅在文件变更时）
+      - name: Commit and push changes
+        uses: EndBug/add-and-commit@v9
+        with:
+          message: "Update servers list at $(date +"%Y-%m-%d %H:%M:%S")"
+          add: |
+            servers.csv
+            README.md
