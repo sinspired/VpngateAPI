@@ -41,6 +41,5 @@ jobs:
       with:
         message: "Update servers list"
         add: |
-          requirements.txt
           servers.csv
           README.md
