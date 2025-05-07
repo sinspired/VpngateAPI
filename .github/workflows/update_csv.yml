@@ -42,10 +42,14 @@ jobs:
           echo "The servers.csv file was last updated at $(date +"%Y-%m-%d %H:%M:%S") UTC+8." >> README.md
 
       # Step 4: 提交并推送更新（仅在文件变更时）
+      - name: Generate commit message with timestamp
+        id: generate_message
+        run: echo "message=Update servers list at $(date +"%Y-%m-%d %H:%M:%S")" >> $GITHUB_ENV
+
       - name: Commit and push changes
         uses: EndBug/add-and-commit@v9
         with:
-          message: "Update servers list at $(date +\"%Y-%m-%d %H:%M:%S\")"
+          message: ${{ env.message }}
           add: |
             servers.csv
             README.md
