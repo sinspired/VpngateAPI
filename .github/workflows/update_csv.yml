@@ -2,9 +2,7 @@ name: Update VPNGate List
 
 on:
   schedule:
-    - cron: '19-24/10 * * * *'  # 每10分钟运行一次
-    - cron: '8-19/5 * * * *'
-    - cron: '0-8/20 * * * *'
+    - cron: '*/5 * * * *'  # 每5分钟运行一次
   push:
     branches:
       - main
