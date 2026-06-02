@@ -7,7 +7,7 @@ from io import StringIO
 
 # 配置项
 URL = "https://www.vpngate.net/api/iphone"
-OUTPUT_YAML = "mihomo_vpngate.yaml"
+OUTPUT_YAML = "vpngate.yaml"
 
 def get_existing_proxy_names(filepath):
     """读取已有的 YAML 文件，提取所有已存在的节点名称用于去重"""
