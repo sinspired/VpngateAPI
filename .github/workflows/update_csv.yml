@@ -50,4 +50,5 @@ jobs:
           message: ${{ env.message }}
           add: |
             servers.csv
+            *.yaml
             README.md
