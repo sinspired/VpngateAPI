@@ -3,7 +3,6 @@ import base64
 import re
 import os
 import csv
-from io import StringIO
 
 # 配置项
 URL = "https://www.vpngate.net/api/iphone"
@@ -17,16 +16,17 @@ def get_existing_proxy_names(filepath):
     
     with open(filepath, 'r', encoding='utf-8') as f:
         content = f.read()
-        # 匹配 - name: "节点名称"
-        matches = re.findall(r'-\s+name:\s+"([^"]+)"', content)
+        # 优化：兼容有引号和无引号的情况，防止手动修改 yaml 后去重失效
+        matches = re.findall(r'-\s+name:\s*["\']?([^"\'\n\r]+)["\']?', content)
         for match in matches:
-            existing_names.add(match)
+            existing_names.add(match.strip())
             
     return existing_names
 
 def indent_text(text, spaces=6):
     """辅助函数：处理 YAML 证书字符串的缩进格式"""
     if not text: return ""
+    # 过滤可能存在的回车符，确保 YAML 格式工整
     return "\n".join(" " * spaces + line for line in text.strip().splitlines())
 
 def main():
@@ -35,9 +35,14 @@ def main():
     print(f"   -> 本地已存在 {len(existing_names)} 个节点。")
 
     print(f"2. 正在从 VPN Gate 拉取最新 CSV 数据...")
-    req = urllib.request.Request(URL)
-    with urllib.request.urlopen(req) as response:
-        csv_data = response.read().decode('utf-8')
+    # 优化：添加 User-Agent 伪装，防止部分网络环境下被 API 拦截
+    req = urllib.request.Request(URL, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+    try:
+        with urllib.request.urlopen(req, timeout=15) as response:
+            csv_data = response.read().decode('utf-8')
+    except Exception as e:
+        print(f"拉取数据失败: {e}")
+        return
 
     # 使用 csv 模块解析，忽略注释行
     lines = [line for line in csv_data.splitlines() if not line.startswith(('*', '#'))]
@@ -58,16 +63,18 @@ def main():
             continue
 
         try:
+            # 优化：补齐 base64 padding，防止 Incorrect padding 报错
+            b64_config += "=" * ((4 - len(b64_config) % 4) % 4)
             # 解码 Base64 配置
             ovpn_config = base64.b64decode(b64_config).decode('utf-8')
             
-            # 正则匹配核心参数
-            port_match = re.search(r'^remote\s+[\d\.]+\s+(\d+)', ovpn_config, re.MULTILINE)
+            # 正则匹配核心参数 (优化：remote 后方不仅有 IP，还有可能是 DDNS 域名，故用 \S+ 匹配)
+            port_match = re.search(r'^remote\s+(\S+)\s+(\d+)', ovpn_config, re.MULTILINE)
             proto_match = re.search(r'^proto\s+(tcp|udp)', ovpn_config, re.MULTILINE)
             cipher_match = re.search(r'^cipher\s+([\w-]+)', ovpn_config, re.MULTILINE)
             auth_match = re.search(r'^auth\s+([\w-]+)', ovpn_config, re.MULTILINE)
             
-            port = int(port_match.group(1)) if port_match else 443
+            port = int(port_match.group(2)) if port_match else 443
             proto = proto_match.group(1) if proto_match else "tcp"
             
             # 生成唯一名称：VPNGate-国家代码-IP-端口-协议
@@ -107,15 +114,12 @@ def main():
         return
 
     print("4. 正在追加新节点到 YAML 文件...")
-    # 判断文件是否为空或不存在，决定是否需要写入 `proxies:` 头部
     is_new_file = not os.path.exists(OUTPUT_YAML) or os.path.getsize(OUTPUT_YAML) == 0
 
-    # 使用追加模式 'a' 打开文件
     with open(OUTPUT_YAML, 'a', encoding='utf-8') as f:
         if is_new_file:
             f.write("proxies:\n")
         elif new_proxies:
-            # 确保追加前，文件末尾有换行符
             f.write("\n")
             
         for p in new_proxies:
