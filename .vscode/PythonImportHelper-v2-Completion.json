@@ -1,0 +1,101 @@
+[
+    {
+        "label": "urllib.request",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "urllib.request",
+        "description": "urllib.request",
+        "detail": "urllib.request",
+        "documentation": {}
+    },
+    {
+        "label": "base64",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "base64",
+        "description": "base64",
+        "detail": "base64",
+        "documentation": {}
+    },
+    {
+        "label": "re",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "re",
+        "description": "re",
+        "detail": "re",
+        "documentation": {}
+    },
+    {
+        "label": "os",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "os",
+        "description": "os",
+        "detail": "os",
+        "documentation": {}
+    },
+    {
+        "label": "csv",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "csv",
+        "description": "csv",
+        "detail": "csv",
+        "documentation": {}
+    },
+    {
+        "label": "get_existing_proxy_names",
+        "kind": 2,
+        "importPath": "fetch_vpngate",
+        "description": "fetch_vpngate",
+        "peekOfCode": "def get_existing_proxy_names(filepath):\n    \"\"\"读取已有的 YAML 文件，提取所有已存在的节点名称用于去重\"\"\"\n    existing_names = set()\n    if not os.path.exists(filepath):\n        return existing_names\n    with open(filepath, 'r', encoding='utf-8') as f:\n        content = f.read()\n        matches = re.findall(r'-\\s+name:\\s*[\"\\']?([^\"\\'\\n\\r]+)[\"\\']?', content)\n        for match in matches:\n            existing_names.add(match.strip())",
+        "detail": "fetch_vpngate",
+        "documentation": {}
+    },
+    {
+        "label": "indent_text",
+        "kind": 2,
+        "importPath": "fetch_vpngate",
+        "description": "fetch_vpngate",
+        "peekOfCode": "def indent_text(text, spaces=6):\n    \"\"\"辅助函数：处理 YAML 证书字符串的缩进格式\"\"\"\n    if not text: return \"\"\n    return \"\\n\".join(\" \" * spaces + line for line in text.strip().splitlines())\ndef main():\n    print(f\"1. 正在检查本地配置文件: {OUTPUT_YAML}\")\n    existing_names = get_existing_proxy_names(OUTPUT_YAML)\n    print(f\"   -> 本地已存在 {len(existing_names)} 个节点。\")\n    print(f\"2. 正在从 VPN Gate 拉取最新 CSV 数据...\")\n    req = urllib.request.Request(URL, headers={'User-Agent': 'Mozilla/5.0 \\(Windows NT 10.0; Win64; x64)'})",
+        "detail": "fetch_vpngate",
+        "documentation": {}
+    },
+    {
+        "label": "main",
+        "kind": 2,
+        "importPath": "fetch_vpngate",
+        "description": "fetch_vpngate",
+        "peekOfCode": "def main():\n    print(f\"1. 正在检查本地配置文件: {OUTPUT_YAML}\")\n    existing_names = get_existing_proxy_names(OUTPUT_YAML)\n    print(f\"   -> 本地已存在 {len(existing_names)} 个节点。\")\n    print(f\"2. 正在从 VPN Gate 拉取最新 CSV 数据...\")\n    req = urllib.request.Request(URL, headers={'User-Agent': 'Mozilla/5.0 \\(Windows NT 10.0; Win64; x64)'})\n    try:\n        with urllib.request.urlopen(req, timeout=15) as response:\n            csv_data = response.read().decode('utf-8')\n    except Exception as e:",
+        "detail": "fetch_vpngate",
+        "documentation": {}
+    },
+    {
+        "label": "URL",
+        "kind": 5,
+        "importPath": "fetch_vpngate",
+        "description": "fetch_vpngate",
+        "peekOfCode": "URL = \"https://www.vpngate.net/api/iphone\"\nOUTPUT_YAML = \"vpngate.yaml\"\nOUTPUT_CSV = \"servers.csv\"\ndef get_existing_proxy_names(filepath):\n    \"\"\"读取已有的 YAML 文件，提取所有已存在的节点名称用于去重\"\"\"\n    existing_names = set()\n    if not os.path.exists(filepath):\n        return existing_names\n    with open(filepath, 'r', encoding='utf-8') as f:\n        content = f.read()",
+        "detail": "fetch_vpngate",
+        "documentation": {}
+    },
+    {
+        "label": "OUTPUT_YAML",
+        "kind": 5,
+        "importPath": "fetch_vpngate",
+        "description": "fetch_vpngate",
+        "peekOfCode": "OUTPUT_YAML = \"vpngate.yaml\"\nOUTPUT_CSV = \"servers.csv\"\ndef get_existing_proxy_names(filepath):\n    \"\"\"读取已有的 YAML 文件，提取所有已存在的节点名称用于去重\"\"\"\n    existing_names = set()\n    if not os.path.exists(filepath):\n        return existing_names\n    with open(filepath, 'r', encoding='utf-8') as f:\n        content = f.read()\n        matches = re.findall(r'-\\s+name:\\s*[\"\\']?([^\"\\'\\n\\r]+)[\"\\']?', content)",
+        "detail": "fetch_vpngate",
+        "documentation": {}
+    },
+    {
+        "label": "OUTPUT_CSV",
+        "kind": 5,
+        "importPath": "fetch_vpngate",
+        "description": "fetch_vpngate",
+        "peekOfCode": "OUTPUT_CSV = \"servers.csv\"\ndef get_existing_proxy_names(filepath):\n    \"\"\"读取已有的 YAML 文件，提取所有已存在的节点名称用于去重\"\"\"\n    existing_names = set()\n    if not os.path.exists(filepath):\n        return existing_names\n    with open(filepath, 'r', encoding='utf-8') as f:\n        content = f.read()\n        matches = re.findall(r'-\\s+name:\\s*[\"\\']?([^\"\\'\\n\\r]+)[\"\\']?', content)\n        for match in matches:",
+        "detail": "fetch_vpngate",
+        "documentation": {}
+    }
+]

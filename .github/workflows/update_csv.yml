@@ -1,0 +1,54 @@
+name: Update VPNGate List
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 每 5 分钟运行一次
+    - cron: "*/15 * * * *"
+
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: update-list
+  cancel-in-progress: true  # 避免多个实例同时运行
+
+jobs:
+  update-list:
+    runs-on: ubuntu-latest
+
+    env:
+      TZ: Asia/Shanghai  # 设置时区为上海
+
+    steps:
+      # Step 1: 检出代码
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: 拉取并更新 VPNGate 数据
+      - name: Fetch VPNGate data and update CSV
+        run: |
+          set -e  # 遇到错误时停止
+          python fetch_vpngate.py
+
+      # Step 3: 修改 README.md 文件
+      - name: Update README.md
+        run: |
+          echo "# $(basename $GITHUB_REPOSITORY)" > README.md
+          echo "" >> README.md
+          echo "The servers.csv file was last updated at $(date +"%Y-%m-%d %H:%M:%S") UTC+8." >> README.md
+
+      # Step 4: 提交并推送更新（仅在文件变更时）
+      - name: Generate commit message with timestamp
+        id: generate_message
+        run: echo "message=Update servers list at $(date +"%Y-%m-%d %H:%M:%S")" >> $GITHUB_ENV
+
+      - name: Commit and push changes
+        uses: EndBug/add-and-commit@v9
+        with:
+          message: ${{ env.message }}
+          add: |
+            servers.csv
+            *.yaml
+            README.md
