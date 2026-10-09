@@ -3,8 +3,8 @@ name: Update VPNGate List
 on:
   workflow_dispatch:
   schedule:
-    # 每 5 分钟运行一次
-    - cron: "*/15 * * * *"
+    # 每 1 小时运行一次
+    - cron: "0 */1 * * *"
 
   push:
     branches:
