@@ -22,29 +22,27 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Fetch VPNGate data and update CSV
         run: |
           set -e
           # 确保如果脚本没找到依赖，先安装依赖
-          pip install pyyaml 
+          pip install pyyaml
           python fetch_vpngate.py
-
       # Step 3: 修改 README.md 文件
       - name: Update README.md
         run: |
           echo "# $(basename $GITHUB_REPOSITORY)" > README.md
           echo "" >> README.md
           echo "The servers.csv file was last updated at $(date +"%Y-%m-%d %H:%M:%S") UTC+8." >> README.md
-
       # Step 4: 提交并推送更新（仅在文件变更时）
       - name: Generate commit message with timestamp
         id: generate_message
         run: echo "message=Update servers list at $(date +"%Y-%m-%d %H:%M:%S")" >> $GITHUB_ENV
 
       - name: Commit and push changes
-        uses: EndBug/add-and-commit@v9
+        uses: EndBug/add-and-commit@v11
         with:
           message: ${{ env.message }}
           add: |
