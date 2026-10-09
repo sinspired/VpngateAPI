@@ -6,14 +6,9 @@
 设计原则：
 1. 尽量"原样还原"源 .ovpn 里出现的、且 mihomo 支持的字段，不额外发明协商列表。
 2. 全局按 IP 去重：同一 IP 历史无论换过多少端口，只取最新一个尝试。
-3. 历史节点存活检测：引入多线程并发并发对历史节点进行 TCP 端口直连 / UDP OpenVPN 握手探测，只保留存活节点。
-4. 自动修复 YAML 重复读写带来的单引号+空行膨胀问题。
-
-依赖：
-    pip install pyyaml
-
-用法：
-    python vpngate_to_mihomo.py
+3. 历史节点存活检测：引入多线程并发对历史节点进行 TCP 端口直连 / UDP OpenVPN 握手探测。
+4. 探活统计：打印 UDP 和 TCP 节点的探测基数与存活率，方便查错调优。
+5. 自动修复 YAML 重复读写带来的单引号+空行膨胀问题。
 """
 
 import base64
@@ -46,7 +41,6 @@ ALLOWED_DEV = {"tun"}
 # ---------- 格式化工具与 YAML 样式 ----------
 
 def clean_multiline(text: str) -> str:
-    """清理多行字符串，移除多余空行，修复 PyYAML 反复读写造成的单引号+空行膨胀。"""
     if not text:
         return ""
     lines = [line.strip() for line in text.splitlines() if line.strip()]
@@ -236,7 +230,8 @@ def check_node_alive(ip: str, port: int, proto: str, timeout: int = 3) -> bool:
             with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
                 s.settimeout(timeout)
                 s.sendto(payload, (ip, port))
-                s.recv(1024) # 能收到服务端的 ACK 或 Reset 响应，说明对方是活着的 OpenVPN
+                # 能收到服务端的任何响应，说明对方是活着的（有可能是 ACK 也可能是 Reset）
+                s.recv(1024) 
                 return True
     except Exception:
         return False
@@ -257,7 +252,7 @@ def merge_proxies(existing: "dict[str, dict]", fresh: "dict[str, dict]") -> list
             if name in existing: updated_count += 1
             else: new_count += 1
 
-    # 2. 收集历史节点，并进行严格 IP 去重（同一个 IP 历史记录再多，也只选最新一次用的端口）
+    # 2. 收集历史节点，并进行严格 IP 去重
     history_candidates = []
     for name, proxy in reversed(list(existing.items())):
         ip = proxy.get("server")
@@ -268,11 +263,19 @@ def merge_proxies(existing: "dict[str, dict]", fresh: "dict[str, dict]") -> list
     # 3. 对历史节点进行并发存活检测
     needed = MAX_NODES - len(merged)
     if needed > 0 and history_candidates:
-        # 为了不消耗太久，最多取 needed 的 2 倍送去测试
-        to_test = history_candidates[:needed * 2]
-        print(f"   -> 准备对 {len(to_test)} 个历史 IP 进行并发存活检测（TCP直连 / UDP握手）...")
+        # 为了不消耗太久，最多取 needed 的 2.5 倍送去测试
+        to_test = history_candidates[:int(needed * 2.5)]
+        
+        # 统计准备探测的协议分布
+        udp_total = sum(1 for p in to_test if p.get("proto") == "udp")
+        tcp_total = sum(1 for p in to_test if p.get("proto") == "tcp")
+        
+        print(f"   -> 准备探测 {len(to_test)} 个历史节点 (UDP: {udp_total} 个, TCP: {tcp_total} 个)...")
         
         alive_proxies = []
+        udp_alive = 0
+        tcp_alive = 0
+        
         with concurrent.futures.ThreadPoolExecutor(max_workers=50) as executor:
             future_to_proxy = {
                 executor.submit(check_node_alive, p.get("server"), p.get("port"), p.get("proto")): p 
@@ -281,9 +284,14 @@ def merge_proxies(existing: "dict[str, dict]", fresh: "dict[str, dict]") -> list
             
             for future in concurrent.futures.as_completed(future_to_proxy):
                 p = future_to_proxy[future]
+                is_tcp = (p.get("proto") == "tcp")
                 try:
                     if future.result():  # 如果节点存活
                         alive_proxies.append(p)
+                        if is_tcp:
+                            tcp_alive += 1
+                        else:
+                            udp_alive += 1
                 except Exception:
                     pass
         
@@ -296,9 +304,10 @@ def merge_proxies(existing: "dict[str, dict]", fresh: "dict[str, dict]") -> list
                 merged[p["name"]] = p
                 retained_count += 1
                 
-        print(f"   -> 历史节点检测完毕：发现存活 {len(alive_proxies)} 个，实际补全保留 {retained_count} 个")
+        print(f"   -> 探测结束！发现存活: {len(alive_proxies)} 个")
+        print(f"      [存活详情] UDP: {udp_alive}/{udp_total} ({(udp_alive/udp_total*100):.1f}%) | TCP: {tcp_alive}/{tcp_total} ({(tcp_alive/tcp_total*100) if tcp_total else 0:.1f}%)")
         
-    print(f"   -> 合并汇总：新增 {new_count}，刷新 {updated_count}，存活历史 {retained_count}")
+    print(f"   -> 合并汇总：新增 {new_count}，刷新 {updated_count}，保留历史存活 {retained_count}")
     return list(merged.values())
 
 def write_proxies(filepath: str, proxies: list) -> None:
