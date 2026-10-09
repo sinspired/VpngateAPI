@@ -6,8 +6,8 @@
 设计原则：
 1. 尽量"原样还原"源 .ovpn 里出现的、且 mihomo 支持的字段，不额外发明协商列表。
 2. 全局按 IP 去重：同一 IP 历史无论换过多少端口，只取最新一个尝试。
-3. 历史节点存活检测：引入多线程并发对历史节点进行 TCP 端口直连 / UDP OpenVPN 握手探测。
-4. 探活统计：打印 UDP 和 TCP 节点的探测基数与存活率，方便查错调优。
+3. 历史节点存活检测：TCP 端口严格探测；UDP 因 GitHub Actions 网络限制默认免测保留。
+4. 探活统计：打印 UDP 和 TCP 节点的探测基数与存活率。
 5. 自动修复 YAML 重复读写带来的单引号+空行膨胀问题。
 """
 
@@ -216,23 +216,18 @@ def fields_to_yaml_proxy(name: str, f: dict) -> dict:
 # ---------- 核心检测与合并逻辑 ----------
 
 def check_node_alive(ip: str, port: int, proto: str, timeout: int = 3) -> bool:
-    """对节点进行快速存活检测。TCP直连探测；UDP利用 OpenVPN Hard Reset 伪包探测。"""
+    """TCP直连探测；UDP由于 GitHub Actions 限制，直接返回存活免测。"""
     if not ip or not port:
         return False
+
+    if proto == "udp":
+        # GitHub Actions 屏蔽了出站 ICMP(Ping) 及伪造的 UDP 包
+        # 强制认为 UDP 存活，交由淘汰机制自动清理老旧节点
+        return True
+
     try:
-        if proto == "tcp":
-            with socket.create_connection((ip, port), timeout=timeout):
-                return True
-        else:
-            # 构造 OpenVPN UDP 握手包 (Opcode: P_CONTROL_HARD_RESET_CLIENT_V2)
-            # 头字节 0x38 (0x07 << 3) + 8字节全零 Session ID
-            payload = b'\x38\x01\x00\x00\x00\x00\x00\x00\x00'
-            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-                s.settimeout(timeout)
-                s.sendto(payload, (ip, port))
-                # 能收到服务端的任何响应，说明对方是活着的（有可能是 ACK 也可能是 Reset）
-                s.recv(1024)
-                return True
+        with socket.create_connection((ip, port), timeout=timeout):
+            return True
     except Exception:
         return False
 
@@ -242,7 +237,7 @@ def merge_proxies(existing: "dict[str, dict]", fresh: "dict[str, dict]") -> list
     seen_ips = set()
     new_count = updated_count = retained_count = 0
 
-    # 1. 优先处理本次最新抓取的节点
+    # 1. 优先处理本次最新抓取的节点 (无需测活直接信任)
     for name, proxy in fresh.items():
         ip = proxy.get("server")
         if not ip: continue
@@ -257,16 +252,14 @@ def merge_proxies(existing: "dict[str, dict]", fresh: "dict[str, dict]") -> list
     for name, proxy in reversed(list(existing.items())):
         ip = proxy.get("server")
         if ip and ip not in seen_ips:
-            seen_ips.add(ip)  # 直接阻断该 IP 的更老历史记录
+            seen_ips.add(ip)  # 阻断该 IP 的更老历史记录
             history_candidates.append(proxy)
 
     # 3. 对历史节点进行并发存活检测
     needed = MAX_NODES - len(merged)
     if needed > 0 and history_candidates:
-        # 为了不消耗太久，最多取 needed 的 2.5 倍送去测试
         to_test = history_candidates[:int(needed * 2.5)]
 
-        # 统计准备探测的协议分布
         udp_total = sum(1 for p in to_test if p.get("proto") == "udp")
         tcp_total = sum(1 for p in to_test if p.get("proto") == "tcp")
 
@@ -286,7 +279,7 @@ def merge_proxies(existing: "dict[str, dict]", fresh: "dict[str, dict]") -> list
                 p = future_to_proxy[future]
                 is_tcp = (p.get("proto") == "tcp")
                 try:
-                    if future.result():  # 如果节点存活
+                    if future.result():  # 如果节点存活 (UDP会直接返回True)
                         alive_proxies.append(p)
                         if is_tcp:
                             tcp_alive += 1
@@ -295,7 +288,6 @@ def merge_proxies(existing: "dict[str, dict]", fresh: "dict[str, dict]") -> list
                 except Exception:
                     pass
 
-        # 按照历史原本的相对顺序（从新到旧），将存活节点合并进最终列表
         alive_names = {p["name"] for p in alive_proxies}
         for p in to_test:
             if p["name"] in alive_names:
@@ -304,10 +296,10 @@ def merge_proxies(existing: "dict[str, dict]", fresh: "dict[str, dict]") -> list
                 merged[p["name"]] = p
                 retained_count += 1
 
-        print(f"   -> 探测结束！发现存活: {len(alive_proxies)} 个")
-        print(f"      [存活详情] UDP: {udp_alive}/{udp_total} ({(udp_alive/udp_total*100):.1f}%) | TCP: {tcp_alive}/{tcp_total} ({(tcp_alive/tcp_total*100) if tcp_total else 0:.1f}%)")
+        print(f"   -> 探测结束！发现存活/保留: {len(alive_proxies)} 个")
+        print(f"      [存活详情] UDP (免测保留): {udp_alive}/{udp_total} | TCP (严格测活): {tcp_alive}/{tcp_total} ({(tcp_alive/tcp_total*100) if tcp_total else 0:.1f}%)")
 
-    print(f"   -> 合并汇总：新增 {new_count}，刷新 {updated_count}，保留历史存活 {retained_count}")
+    print(f"   -> 合并汇总：新增 {new_count}，刷新 {updated_count}，保留历史 {retained_count}")
     return list(merged.values())
 
 def write_proxies(filepath: str, proxies: list) -> None:
