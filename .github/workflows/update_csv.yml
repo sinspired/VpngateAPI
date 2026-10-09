@@ -3,8 +3,8 @@ name: Update VPNGate List
 on:
   workflow_dispatch:
   schedule:
-    # 每 1 小时运行一次
-    - cron: "0 */1 * * *"
+    # 避开整点高峰，改为每小时的第 13 分钟运行 (相当于 13 * * * *)
+    - cron: '13 * * * *'
 
   push:
     branches:
@@ -12,24 +12,23 @@ on:
 
 concurrency:
   group: update-list
-  cancel-in-progress: true  # 避免多个实例同时运行
+  cancel-in-progress: true # 避免多个实例同时运行
 
 jobs:
   update-list:
     runs-on: ubuntu-latest
-
     env:
-      TZ: Asia/Shanghai  # 设置时区为上海
+      TZ: Asia/Shanghai # 设置时区为上海
 
     steps:
-      # Step 1: 检出代码
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Step 2: 拉取并更新 VPNGate 数据
       - name: Fetch VPNGate data and update CSV
         run: |
-          set -e  # 遇到错误时停止
+          set -e
+          # 确保如果脚本没找到依赖，先安装依赖
+          pip install pyyaml 
           python fetch_vpngate.py
 
       # Step 3: 修改 README.md 文件
