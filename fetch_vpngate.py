@@ -6,8 +6,8 @@
 设计原则：
 1. 尽量"原样还原"源 .ovpn 里出现的、且 mihomo 支持的字段，不额外发明协商列表。
 2. 全局按 IP 去重：同一 IP 历史无论换过多少端口，只取最新一个尝试。
-3. 历史节点存活检测：TCP 端口直连 / UDP 改用 ICMP Ping 检测。
-4. 探活统计：打印 UDP 和 TCP 节点的探测基数与存活率。
+3. 历史节点存活检测：引入多线程并发对历史节点进行 TCP 端口直连 / UDP OpenVPN 握手探测。
+4. 探活统计：打印 UDP 和 TCP 节点的探测基数与存活率，方便查错调优。
 5. 自动修复 YAML 重复读写带来的单引号+空行膨胀问题。
 """
 
@@ -17,7 +17,6 @@ import csv
 import os
 import re
 import socket
-import subprocess
 import time
 import urllib.error
 import urllib.request
@@ -122,7 +121,7 @@ def _find_tag(config: str, tag: str):
 
 def parse_ovpn_block(ovpn_config: str, fallback_ip: str) -> dict | None:
     ca = _find_tag(ovpn_config, "ca")
-    if not ca or _find_bare(ovpn_config, "auth-user-pass"): return None 
+    if not ca or _find_bare(ovpn_config, "auth-user-pass"): return None
 
     dev = (_find(ovpn_config, "dev") or "tun").lower()
     if dev not in ALLOWED_DEV: return None
@@ -173,7 +172,7 @@ def parse_ovpn_block(ovpn_config: str, fallback_ip: str) -> dict | None:
     tls_auth = _find_tag(ovpn_config, "tls-auth")
     tls_crypt = _find_tag(ovpn_config, "tls-crypt") if not tls_auth else None
     tls_crypt_v2 = _find_tag(ovpn_config, "tls-crypt-v2") if not (tls_auth or tls_crypt) else None
-    
+
     key_direction = _find(ovpn_config, "key-direction") if tls_auth else None
     if tls_auth and key_direction is None: key_direction = "1"
 
@@ -217,7 +216,7 @@ def fields_to_yaml_proxy(name: str, f: dict) -> dict:
 # ---------- 核心检测与合并逻辑 ----------
 
 def check_node_alive(ip: str, port: int, proto: str, timeout: int = 3) -> bool:
-    """对节点进行快速存活检测。TCP直连探测；UDP由于环境限制退化为 ICMP Ping探测。"""
+    """对节点进行快速存活检测。TCP直连探测；UDP利用 OpenVPN Hard Reset 伪包探测。"""
     if not ip or not port:
         return False
     try:
@@ -225,14 +224,15 @@ def check_node_alive(ip: str, port: int, proto: str, timeout: int = 3) -> bool:
             with socket.create_connection((ip, port), timeout=timeout):
                 return True
         else:
-            # Fallback：针对 UDP，使用系统 ping 测活 (Linux 下为 ping -c 1 -W timeout)
-            # 因为 GitHub Actions 屏蔽了我们构造的 UDP 握手包
-            result = subprocess.run(
-                ["ping", "-c", "1", "-W", str(timeout), ip],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
-            )
-            return result.returncode == 0
+            # 构造 OpenVPN UDP 握手包 (Opcode: P_CONTROL_HARD_RESET_CLIENT_V2)
+            # 头字节 0x38 (0x07 << 3) + 8字节全零 Session ID
+            payload = b'\x38\x01\x00\x00\x00\x00\x00\x00\x00'
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+                s.settimeout(timeout)
+                s.sendto(payload, (ip, port))
+                # 能收到服务端的任何响应，说明对方是活着的（有可能是 ACK 也可能是 Reset）
+                s.recv(1024)
+                return True
     except Exception:
         return False
 
@@ -242,7 +242,7 @@ def merge_proxies(existing: "dict[str, dict]", fresh: "dict[str, dict]") -> list
     seen_ips = set()
     new_count = updated_count = retained_count = 0
 
-    # 1. 优先处理本次最新抓取的节点 (无需测活直接信任)
+    # 1. 优先处理本次最新抓取的节点
     for name, proxy in fresh.items():
         ip = proxy.get("server")
         if not ip: continue
@@ -257,29 +257,31 @@ def merge_proxies(existing: "dict[str, dict]", fresh: "dict[str, dict]") -> list
     for name, proxy in reversed(list(existing.items())):
         ip = proxy.get("server")
         if ip and ip not in seen_ips:
-            seen_ips.add(ip)  # 阻断该 IP 的更老历史记录
+            seen_ips.add(ip)  # 直接阻断该 IP 的更老历史记录
             history_candidates.append(proxy)
-            
+
     # 3. 对历史节点进行并发存活检测
     needed = MAX_NODES - len(merged)
     if needed > 0 and history_candidates:
+        # 为了不消耗太久，最多取 needed 的 2.5 倍送去测试
         to_test = history_candidates[:int(needed * 2.5)]
-        
+
+        # 统计准备探测的协议分布
         udp_total = sum(1 for p in to_test if p.get("proto") == "udp")
         tcp_total = sum(1 for p in to_test if p.get("proto") == "tcp")
-        
+
         print(f"   -> 准备探测 {len(to_test)} 个历史节点 (UDP: {udp_total} 个, TCP: {tcp_total} 个)...")
-        
+
         alive_proxies = []
         udp_alive = 0
         tcp_alive = 0
-        
+
         with concurrent.futures.ThreadPoolExecutor(max_workers=50) as executor:
             future_to_proxy = {
-                executor.submit(check_node_alive, p.get("server"), p.get("port"), p.get("proto")): p 
+                executor.submit(check_node_alive, p.get("server"), p.get("port"), p.get("proto")): p
                 for p in to_test
             }
-            
+
             for future in concurrent.futures.as_completed(future_to_proxy):
                 p = future_to_proxy[future]
                 is_tcp = (p.get("proto") == "tcp")
@@ -292,7 +294,8 @@ def merge_proxies(existing: "dict[str, dict]", fresh: "dict[str, dict]") -> list
                             udp_alive += 1
                 except Exception:
                     pass
-        
+
+        # 按照历史原本的相对顺序（从新到旧），将存活节点合并进最终列表
         alive_names = {p["name"] for p in alive_proxies}
         for p in to_test:
             if p["name"] in alive_names:
@@ -300,10 +303,10 @@ def merge_proxies(existing: "dict[str, dict]", fresh: "dict[str, dict]") -> list
                     break
                 merged[p["name"]] = p
                 retained_count += 1
-                
+
         print(f"   -> 探测结束！发现存活: {len(alive_proxies)} 个")
-        print(f"      [存活详情] UDP: {udp_alive}/{udp_total} ({(udp_alive/udp_total*100) if udp_total else 0:.1f}%) | TCP: {tcp_alive}/{tcp_total} ({(tcp_alive/tcp_total*100) if tcp_total else 0:.1f}%)")
-        
+        print(f"      [存活详情] UDP: {udp_alive}/{udp_total} ({(udp_alive/udp_total*100):.1f}%) | TCP: {tcp_alive}/{tcp_total} ({(tcp_alive/tcp_total*100) if tcp_total else 0:.1f}%)")
+
     print(f"   -> 合并汇总：新增 {new_count}，刷新 {updated_count}，保留历史存活 {retained_count}")
     return list(merged.values())
 
