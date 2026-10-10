@@ -1,18 +1,12 @@
 name: Update VPNGate List
 
 on:
-  workflow_dispatch:
   schedule:
-    # 避开整点高峰，改为每小时的第 13 分钟运行 (相当于 13 * * * *)
-    - cron: '13 * * * *'
-
+    - cron: '43 */2 * * *'
+  workflow_dispatch:
   push:
     branches:
       - main
-
-concurrency:
-  group: update-list
-  cancel-in-progress: true # 避免多个实例同时运行
 
 jobs:
   update-list:
