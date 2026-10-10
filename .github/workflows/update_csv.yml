@@ -22,8 +22,6 @@ jobs:
       - name: Fetch VPNGate data and update CSV
         run: |
           set -e
-          # 确保如果脚本没找到依赖，先安装依赖
-          pip install pyyaml
           python fetch_vpngate.py
       # Step 3: 修改 README.md 文件
       - name: Update README.md
