@@ -26,7 +26,7 @@ import yaml
 URL = "https://www.vpngate.net/api/iphone/"
 OUTPUT_YAML = "vpngate.yaml"
 OUTPUT_CSV = "servers.csv"
-MAX_NODES = 300  # 最大保留节点数
+MAX_NODES = 10000  # 最大保留节点数
 
 ALLOWED_CIPHERS = {
     "AES-128-GCM", "AES-192-GCM", "AES-256-GCM",
