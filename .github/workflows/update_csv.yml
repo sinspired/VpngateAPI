@@ -3,6 +3,7 @@ name: Update VPNGate List
 on:
   schedule:
     - cron: '43 */2 * * *'
+      timezone: 'Asia/Singapore'
   workflow_dispatch:
   push:
     branches:
