@@ -2,7 +2,7 @@ name: Update VPNGate List
 
 on:
   schedule:
-    - cron: '37 */1 * * *'
+    - cron: '37 2-10/1,11-23/3 * * *'
       timezone: 'Asia/Singapore'
   workflow_dispatch:
   push:
