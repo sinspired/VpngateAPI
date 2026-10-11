@@ -2,7 +2,7 @@ name: Update VPNGate List
 
 on:
   schedule:
-    - cron: '43 */2 * * *'
+    - cron: '37 */1 * * *'
       timezone: 'Asia/Singapore'
   workflow_dispatch:
   push:
@@ -12,8 +12,6 @@ on:
 jobs:
   update-list:
     runs-on: ubuntu-latest
-    env:
-      TZ: Asia/Shanghai # 设置时区为上海
 
     steps:
       - name: Checkout repository
